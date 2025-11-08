@@ -4,10 +4,11 @@
 <meta charset="UTF-8">
 <title>Prenotazioni</title>
 <style>
+  body { font-family: Arial, sans-serif; padding: 20px; }
   table { border-collapse: collapse; margin-top: 20px; width: 100%; }
-  th, td { border: 1px solid #000; padding: 5px; text-align: center; }
-  button { margin: 2px; }
-  select { position: absolute; display: none; }
+  th, td { border: 1px solid #000; padding: 8px; text-align: center; }
+  button { margin: 2px; padding: 5px 10px; cursor: pointer; }
+  select { display: none; margin-top: 5px; }
 </style>
 </head>
 <body>
@@ -18,111 +19,98 @@
   <tbody></tbody>
 </table>
 
-<select id="name-select">
-  <option value="">Scegli il tuo nome</option>
-</select>
-
 <script>
-let names = [];
-let currentBtn = null;
-
 async function loadSlots() {
-  // Carica gli slot
-  const res = await fetch("/api/slots");
-  const data = await res.json();
+  try {
+    const res = await fetch("/api/slots");
+    if (!res.ok) throw new Error("Errore caricamento slot");
+    const data = await res.json();
 
-  const thead = document.querySelector("#slots-table thead");
-  const tbody = document.querySelector("#slots-table tbody");
+    const thead = document.querySelector("#slots-table thead");
+    const tbody = document.querySelector("#slots-table tbody");
 
-  thead.innerHTML = "<tr><th>Ora</th>" + data.header.map(h => `<th>${h}</th>`).join("") + "</tr>";
+    // Intestazioni: Ora | Lunedì | Martedì | ...
+    thead.innerHTML = "<tr><th>Ora</th>" + data.header.map(h => `<th>${h}</th>`).join("") + "</tr>";
+    tbody.innerHTML = "";
 
-  tbody.innerHTML = "";
-  data.slots.forEach((slot, oraIndex) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${slot.ora}</td>` +
-      slot.posti.map((p, giornoIndex) =>
-        `<td>
-          <button data-ora-index="${oraIndex}" data-giorno-index="${giornoIndex}" ${p <= 0 ? 'disabled' : ''}>
-            ${p} posti
-          </button>
-        </td>`
-      ).join("");
-    tbody.appendChild(tr);
-  });
+    data.slots.forEach((slot, oraIndex) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${slot.ora}</td>` +
+        slot.posti.map((p, giornoIndex) =>
+          `<td>
+            <button data-ora-index="${oraIndex}" data-giorno-index="${giornoIndex}" ${p <= 0 ? 'disabled' : ''}>
+              ${p} posti
+            </button>
+            <select>
+              <option value="">Scegli il tuo nome</option>
+            </select>
+          </td>`).join("");
+      tbody.appendChild(tr);
+    });
 
-  // Carica i nomi
-  const namesRes = await fetch("/api/names");
-  names = await namesRes.json();
+    // Carica nomi
+    const namesRes = await fetch("/api/names");
+    const names = await namesRes.json();
 
-  // Event listener delegato per i pulsanti
-  tbody.addEventListener("click", (e) => {
-    if (e.target.tagName !== "BUTTON") return;
-    const btn = e.target;
-    currentBtn = btn;
-
-    const select = document.getElementById("name-select");
-    select.innerHTML = '<option value="">Scegli il tuo nome</option>' +
-      names.map(n => `<option value="${n}">${n}</option>`).join("");
-
-    // Posiziona il select vicino al pulsante cliccato
-    const rect = btn.getBoundingClientRect();
-    select.style.top = (window.scrollY + rect.bottom + 2) + "px";
-    select.style.left = (window.scrollX + rect.left) + "px";
-    select.style.display = "block";
-    select.focus();
-  });
-
-  // Prenotazione quando si seleziona un nome
-  const select = document.getElementById("name-select");
-  select.addEventListener("change", async (e) => {
-    const nome = e.target.value;
-    if (!nome || !currentBtn) return;
-
-    const oraIndex = parseInt(currentBtn.dataset.oraIndex);
-    const giornoIndex = parseInt(currentBtn.dataset.giornoIndex);
-
-    const conferma = confirm(`Confermi la prenotazione di ${nome} alle ore ${currentBtn.textContent} ?`);
-    if (!conferma) {
-      select.value = "";
-      select.style.display = "none";
-      currentBtn = null;
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/book", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, oraIndex, giornoIndex })
+    // Eventi pulsanti
+    document.querySelectorAll("button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const cell = btn.parentElement;
+        const select = cell.querySelector("select");
+        select.innerHTML = '<option value="">Scegli il tuo nome</option>' +
+          names.map(n => `<option value="${n}">${n}</option>`).join("");
+        select.style.display = "block";
       });
-      const result = await res.json();
+    });
 
-      if (res.ok) {
-        currentBtn.textContent = result.postiRimasti + " posti";
-        currentBtn.disabled = result.postiRimasti <= 0;
-        alert(`Prenotazione confermata per ${nome}`);
-      } else {
-        alert("Errore di prenotazione: " + result.error);
-      }
-    } catch (err) {
-      alert("Errore di prenotazione: " + err.message);
-    }
+    // Prenotazione al cambio select
+    document.querySelectorAll("select").forEach(sel => {
+      sel.addEventListener("change", async (e) => {
+        const nome = e.target.value;
+        if (!nome) return;
 
-    select.value = "";
-    select.style.display = "none";
-    currentBtn = null;
-  });
+        const cell = e.target.parentElement;
+        const btn = cell.querySelector("button");
+        const oraIndex = parseInt(btn.dataset.oraIndex);
+        const giornoIndex = parseInt(btn.dataset.giornoIndex);
 
-  // Nascondi select se clicchi altrove
-  document.addEventListener("click", (e) => {
-    const select = document.getElementById("name-select");
-    if (e.target !== select && e.target.tagName !== "BUTTON") {
-      select.style.display = "none";
-      currentBtn = null;
-    }
-  });
+        const conferma = confirm(`Confermi la prenotazione di ${nome} alle ore ${btn.parentElement.parentElement.firstChild.textContent} del giorno ${data.header[giornoIndex]}?`);
+        if (!conferma) {
+          e.target.value = "";
+          e.target.style.display = "none";
+          return;
+        }
+
+        try {
+          const res = await fetch("/api/book", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ nome, oraIndex, giornoIndex })
+          });
+          const result = await res.json();
+
+          if (res.ok) {
+            btn.textContent = result.postiRimasti + " posti";
+            btn.disabled = result.postiRimasti <= 0;
+            e.target.style.display = "none";
+            e.target.value = "";
+            alert(`Prenotazione confermata per ${nome}`);
+          } else {
+            alert("Errore di prenotazione: " + result.error);
+          }
+        } catch (err) {
+          alert("Errore di prenotazione: " + err.message);
+        }
+      });
+    });
+
+  } catch (err) {
+    console.error("Errore caricamento slot:", err);
+    alert("Errore caricamento slot. Controlla i log del server.");
+  }
 }
 
+// Carica la tabella all'apertura
 loadSlots();
 </script>
 </body>
