@@ -16,13 +16,13 @@ app.use(express.static(path.join(__dirname, "public")));
 const SPREADSHEET_ID = "1fFWnC6k9rYYeAyCbHqu0XBof7cM1xvOQp9i3RrCB1s0";
 const SLOTS_RANGE = "Slots!A1:F20";      // Foglio Slots
 const NAMES_RANGE = "Nomi!A1:A230";      // Foglio Nomi
-const BOOKINGS_RANGE = "Prenotazioni!A1:C1"; // Foglio Prenotazioni (nome, giorno, ora)
+const BOOKINGS_RANGE = "Prenotazioni!A1:C1"; // Foglio Prenotazioni
 
 let sheets;
 let SLOT_CACHE = [];
 let HEADER = [];
 
-// Inizializza Google Sheets con variabile d'ambiente
+// Inizializza Google Sheets
 async function initSheets() {
   try {
     if (!process.env.GOOGLE_CREDENTIALS) {
@@ -39,7 +39,6 @@ async function initSheets() {
     const client = await auth.getClient();
     sheets = google.sheets({ version: "v4", auth: client });
 
-    await loadSlots();
     console.log("✅ Google Sheets inizializzato correttamente");
   } catch (err) {
     console.error("❌ Errore initSheets:", err);
@@ -75,10 +74,10 @@ async function loadSlots() {
   }
 }
 
-// Endpoint per ottenere slot
+// Endpoint per ottenere slot (SEMPLICE refresh ogni richiesta)
 app.get("/api/slots", async (req, res) => {
   try {
-    if (SLOT_CACHE.length === 0) await loadSlots();
+    await loadSlots(); // ✅ ricarica sempre dal foglio
     res.json({ header: HEADER, slots: SLOT_CACHE });
   } catch (err) {
     console.error("❌ Errore /api/slots:", err);
