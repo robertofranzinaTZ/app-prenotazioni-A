@@ -13,7 +13,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-const SPREADSHEET_ID = "1fFWnC6k9rYYeAyCbHqu0XBof7cM1xvOQp9i3RrCB1s0";
+const SPREADSHEET_ID = "1a6y3lRt6FJQPsFuVcuofaQOUJRyEgqOzFzWIoPTXGrM";
 const SLOTS_RANGE = "Slots!A1:F20";      // Foglio Slots
 const NAMES_RANGE = "Nomi!A1:A230";      // Foglio Nomi
 const BOOKINGS_RANGE = "Prenotazioni!A1:C1"; // Foglio Prenotazioni
