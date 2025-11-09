@@ -28,16 +28,12 @@ async function initSheets() {
     if (!process.env.GOOGLE_CREDENTIALS) {
       throw new Error("La variabile GOOGLE_CREDENTIALS non è impostata!");
     }
-
-    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
-
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"]
+const auth = new google.auth.GoogleAuth({
+      credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT),
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
 
-    const client = await auth.getClient();
-    sheets = google.sheets({ version: "v4", auth: client });
+    sheets = google.sheets({ version: "v4", auth });
 
     console.log("✅ Google Sheets inizializzato correttamente");
   } catch (err) {
